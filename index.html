@@ -33,42 +33,134 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 td input{padding:6px}
 .empty{color:var(--muted);padding:18px 0;text-align:center}
 .note{color:var(--muted);font-size:13px;margin:8px 0 0}
+
+select {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 9px;
+    width: 100%;
+}
+
+select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+}
+
 </style>
 </head>
 <body>
 <main>
   <h1>Client Follow-Up Tracker</h1>
-  <p class="sub">Enter a client below. Entries are saved in this browser. Connect an Excel file to save every entry to it automatically.</p>
+  <p class="sub">Enter a client below.</p>
 
   <div class="card">
-    <form id="f">
-      <label>Client Name<input name="name" required autocomplete="off"></label>
-      <label>Company<input name="company" required autocomplete="off"></label>
-      <label>Proposal<input name="proposal" autocomplete="off" placeholder="Title or status"></label>
-      <label>First Follow Up<input type="date" name="f1"></label>
-      <label>2nd Follow Up<input type="date" name="f2"></label>
-      <label>3rd Follow Up<input type="date" name="f3"></label>
-      <div class="actions"><button type="submit">Add Client</button><button type="reset" class="ghost">Clear</button></div>
-    </form>
+    
+<form id="f">
+
+    <label>
+        Client Name
+        <input
+            type="text"
+            name="name"
+            required
+            autocomplete="off"
+        >
+    </label>
+
+    <label>
+        Company
+        <input
+            type="text"
+            name="company"
+            required
+            autocomplete="off"
+        >
+    </label>
+
+    <label>
+        Proposal Title
+        <input
+            type="text"
+            name="proposaltitle"
+            placeholder="Enter proposal title"
+            autocomplete="off"
+        >
+    </label>
+
+    <label>
+        Proposal Status
+        <select name="proposalstatus" required>
+            <option value="">Select Status</option>
+            <option value="Sent">Sent</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Pending">Pending</option>
+        </select>
+    </label>
+
+    <label>
+        First Follow Up
+        <input type="date" name="f1">
+    </label>
+
+    <label>
+        2nd Follow Up
+        <input type="date" name="f2">
+    </label>
+
+    <label>
+        3rd Follow Up
+        <input type="date" name="f3">
+    </label>
+
+    <div style="align-content: right;" class="actions">
+        <button type="submit">Add Client</button>
+        <button type="reset" class="ghost">Clear</button>
+    </div>
+
+</form>
+
   </div>
 
-  <div class="card">
+  
+<div class="card">
+
     <div class="bar">
-      <h2>Clients (<spcan an id="count">0</span>)</h2>
+        <h2>Clients (<span id="count">0</span>)</h2>
     </div>
-    <div class="bar">
-      <span class="note" id="syncStatus" style="margin:0"></span>
-      <span><button id="link" type="button" class="ghost">Connect Excel file</button> <button id="chg" type="button" class="ghost" style="display:none">Change file</button></span>
-    </div>
+
     <div class="wrap">
-      <table>
-        <thead><tr><th>Client Name</th><th>Company</th><th>Proposal</th><th>First Follow Up</th><th>2nd Follow Up</th><th>3rd Follow Up</th><th></th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-      <div id="empty" class="empty">No clients yet. Add your first one above.</div>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Client Name</th>
+                    <th>Company</th>
+                    <th>Proposal Title</th>
+                    <th>Proposal Status</th>
+                    <th>First Follow Up</th>
+                    <th>2nd Follow Up</th>
+                    <th>3rd Follow Up</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="rows"></tbody>
+
+        </table>
+
+        <div id="empty" class="empty">
+            No clients yet. Add your first one above.
+        </div>
+
     </div>
-    <p class="note" id="note"></p>
-  </div>
+
+</div>
+
 </main>
 
 </body>

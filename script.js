@@ -5,7 +5,7 @@
     // 1. INITIAL SETTINGS
     // ==========================================
 
-    var KEYS = ["name", "company", "proposal", "f1", "f2", "f3"];
+    var KEYS = ["name", "company", "proposaltitle", "proposalstatus", "f1", "f2", "f3"];
 
     var rows = [];
     var LKEY = "client-tracker-rows";
@@ -48,70 +48,102 @@
     // 3. DISPLAY CLIENT RECORDS
     // ==========================================
 
-    function render() {
+   
+function render() {
 
-        var tb = $("rows");
-        tb.textContent = "";
+    var tb = $("rows");
+    tb.textContent = "";
 
-        rows.forEach(function (r) {
+    rows.forEach(function(r) {
 
-            var tr = document.createElement("tr");
+        var tr = document.createElement("tr");
 
-            KEYS.forEach(function (k) {
-
-                var td = document.createElement("td");
-
-                if (k === "f1" || k === "f2" || k === "f3") {
-
-                    var i = document.createElement("input");
-
-                    i.type = "date";
-                    i.value = r[k] || "";
-
-                    i.addEventListener("change", function () {
-                        update(r, k, i.value);
-                    });
-
-                    td.appendChild(i);
-
-                } else {
-
-                    td.textContent = r[k] || "";
-
-                }
-
-                tr.appendChild(td);
-
-            });
+        KEYS.forEach(function(k) {
 
             var td = document.createElement("td");
 
-            var b = document.createElement("button");
+            // Proposal Status dropdown
+            if (k === "proposalStatus") {
 
-            b.className = "del";
-            b.type = "button";
-            b.textContent = "Delete";
+                var select = document.createElement("select");
 
-            b.addEventListener("click", function () {
+                ["Pending", "Sent", "Approved", "Rejected"]
+                    .forEach(function(status) {
 
-                if (confirm("Delete this client?")) {
-                    remove(r);
-                }
+                        var option = document.createElement("option");
+                        option.value = status;
+                        option.textContent = status;
 
-            });
+                        select.appendChild(option);
 
-            td.appendChild(b);
+                    });
+
+                select.value = r[k] || "Pending";
+
+                select.addEventListener("change", function() {
+                    update(r, k, select.value);
+                });
+
+                td.appendChild(select);
+
+            }
+
+            // Follow-up date fields
+            else if (k === "f1" || k === "f2" || k === "f3") {
+
+                var input = document.createElement("input");
+
+                input.type = "date";
+                input.value = r[k] || "";
+
+                input.addEventListener("change", function() {
+                    update(r, k, input.value);
+                });
+
+                td.appendChild(input);
+
+            }
+
+            // Other text fields
+            else {
+
+                td.textContent = r[k] || "";
+
+            }
+
             tr.appendChild(td);
-            tb.appendChild(tr);
 
         });
 
-        $("count").textContent = rows.length;
+        // Delete button
+        var td = document.createElement("td");
 
-        $("empty").style.display = rows.length ? "none" : "block";
+        var btn = document.createElement("button");
+        btn.className = "del";
+        btn.type = "button";
+        btn.textContent = "Delete";
 
-    }
+        btn.addEventListener("click", function() {
 
+            if (confirm("Delete this client?")) {
+                remove(r);
+            }
+
+        });
+
+        td.appendChild(btn);
+        tr.appendChild(td);
+
+        tb.appendChild(tr);
+
+    });
+
+    $("count").textContent = rows.length;
+
+    $("empty").style.display =
+        rows.length === 0 ? "block" : "none";
+
+}
 
     // ==========================================
     // 4. ADD CLIENT

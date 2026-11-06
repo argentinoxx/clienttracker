@@ -216,40 +216,40 @@
             }));
     }
 
+    
     // ==========================================
     // 11. TABLE RENDERING
     // ==========================================
 
-    function statusSelect(row) {
+    function statusSelect(row, isEditing) {
         const options = getStatusOptions(row.proposalstatus);
 
-        return `
-            <select
-                class="row-status"
-                data-id="${escapeHTML(row.id)}"
-            >
-                ${options.map(option => `
-                    <option
-                        value="${escapeHTML(option.value)}"
-                        ${option.value === row.proposalstatus ? "selected" : ""}
-                    >
-                        ${escapeHTML(option.label)}
-                    </option>
-                `).join("")}
-            </select>
-        `;
+        return isEditing
+            ? `
+                <select name="proposalstatus">
+                    ${options.map(option => `
+                        <option
+                            value="${escapeHTML(option.value)}"
+                            ${option.value === row.proposalstatus ? "selected" : ""}
+                        >
+                            ${escapeHTML(option.label)}
+                        </option>
+                    `).join("")}
+                </select>
+            `
+            : escapeHTML(row.proposalstatus);
     }
 
-    function dateInput(row, key) {
-        return `
-            <input
-                type="date"
-                class="row-date"
-                data-id="${escapeHTML(row.id)}"
-                data-field="${key}"
-                value="${escapeHTML(row[key])}"
-            >
-        `;
+    function dateInput(row, key, isEditing) {
+        return isEditing
+            ? `
+                <input
+                    type="date"
+                    name="${key}"
+                    value="${escapeHTML(row[key])}"
+                >
+            `
+            : escapeHTML(row[key]);
     }
 
     function render() {
@@ -267,42 +267,72 @@
                 $("empty").style.display = "none";
             }
 
-            tableBody.innerHTML = rows.map(row => `
-                <tr>
-                    <td>${escapeHTML(row.name)}</td>
+            tableBody.innerHTML = rows.map(row => {
+                const isEditing = editingId === row.id;
 
-                    <td>${escapeHTML(row.company)}</td>
+                return `
+                    <tr>
+                        <td>
+                            ${isEditing
+                                ? `<input name="name" value="${escapeHTML(row.name)}">`
+                                : escapeHTML(row.name)}
+                        </td>
 
-                    <td>${escapeHTML(row.proposaltitle)}</td>
+                        <td>
+                            ${isEditing
+                                ? `<input name="company" value="${escapeHTML(row.company)}">`
+                                : escapeHTML(row.company)}
+                        </td>
 
-                    <td>${statusSelect(row)}</td>
+                        <td>
+                            ${isEditing
+                                ? `<input name="proposaltitle" value="${escapeHTML(row.proposaltitle)}">`
+                                : escapeHTML(row.proposaltitle)}
+                        </td>
 
-                    <td>${dateInput(row, "f1")}</td>
+                        <td>${statusSelect(row, isEditing)}</td>
 
-                    <td>${dateInput(row, "f2")}</td>
+                        <td>${dateInput(row, "f1", isEditing)}</td>
 
-                    <td>${dateInput(row, "f3")}</td>
+                        <td>${dateInput(row, "f2", isEditing)}</td>
 
-                    <td>
-                        <button
-                            type="button"
-                            data-action="edit"
-                            data-id="${escapeHTML(row.id)}"
-                        >
-                            Edit
-                        </button>
+                        <td>${dateInput(row, "f3", isEditing)}</td>
 
-                        <button
-                            type="button"
-                            class="del"
-                            data-action="delete"
-                            data-id="${escapeHTML(row.id)}"
-                        >
-                            Delete
-                        </button>
-                    </td>
-                </tr>
-            `).join("");
+                        <td>
+                            ${isEditing
+                                ? `
+                                    <button type="button"
+                                        data-action="save"
+                                        data-id="${escapeHTML(row.id)}">
+                                        Save
+                                    </button>
+
+                                    <button type="button"
+                                        class="ghost"
+                                        data-action="cancel"
+                                        data-id="${escapeHTML(row.id)}">
+                                        Cancel
+                                    </button>
+                                `
+                                : `
+                                    <button type="button"
+                                        data-action="edit"
+                                        data-id="${escapeHTML(row.id)}">
+                                        Edit
+                                    </button>
+
+                                    <button type="button"
+                                        class="del"
+                                        data-action="delete"
+                                        data-id="${escapeHTML(row.id)}">
+                                        Delete
+                                    </button>
+                                `
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join("");
         }
 
         if ($("count")) {
@@ -427,47 +457,64 @@
         });
     }
 
+    
     // ==========================================
     // 15. TABLE ACTIONS
     // ==========================================
 
     if (tableBody) {
-        tableBody.addEventListener("click", async function (event) {
-            const button = event.target.closest("button[data-action]");
+                if (!updates.name) {
+                    alert("Please enter the client name.");
+                    return;
+                }
 
-            if (!button || busy) return;
+                if (!updates.proposalstatus) {
+                    alert("Please select a proposal status.");
+                    return;
+                }
 
-            const id = button.dataset.id;
-            const action = button.dataset.action;
+                busy = true;
+                setStatus("Saving changes...");
 
-            if (action === "edit") {
-                editClient(id);
+                try {
+                    await updateClient(id, updates);
+
+                    editingId = null;
+                    render();
+
+                    setStatus("Changes saved successfully");
+
+                } catch (error) {
+                    console.error(error);
+                    alert("Could not save changes: " + error.message);
+                    setStatus("Update failed");
+
+                } finally {
+                    busy = false;
+                }
+
                 return;
             }
 
             if (action === "delete") {
-                const confirmed = confirm(
-                    "Are you sure you want to delete this client?"
-                );
-
-                if (!confirmed) return;
+                if (!confirm("Are you sure you want to delete this client?")) {
+                    return;
+                }
 
                 busy = true;
-
                 setStatus("Deleting...");
 
                 try {
                     await deleteClient(id);
 
+                    editingId = null;
                     render();
 
                     setStatus("Client deleted");
 
                 } catch (error) {
-                    console.error("Delete error:", error);
-
+                    console.error(error);
                     alert("Could not delete client: " + error.message);
-
                     setStatus("Delete failed");
 
                 } finally {
@@ -475,6 +522,7 @@
                 }
             }
         });
+    }
 
         // ==========================================
         // 16. INLINE STATUS AND DATE UPDATES

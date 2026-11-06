@@ -278,52 +278,33 @@
     // ==========================================
     // 9. DELETE CLIENT
     // ==========================================
-
     async function deleteClient(id) {
-
-        if (busy) return;
-
         const confirmed = confirm(
-            "Are you sure you want to delete this client?"
+            "Are you sure you want to delete this client record?\n\nThis action cannot be undone."
         );
-
-        if (!confirmed) return;
-
-        busy = true;
-
-        setStatus("Deleting client...");
-
-        try {
-
-            await apiRequest("DELETE", null, id);
-
-            if (editingId === id) {
-                editingId = null;
-            }
-
-            await loadClients();
-
-            setStatus("Client deleted successfully.");
-
-        } catch (error) {
-
-            console.error(error);
-
-            setStatus(
-                "Unable to delete client: " + error.message,
-                true
-            );
-
-        } finally {
-
-            busy = false;
-
-            render();
-
+    
+        if (!confirmed) {
+            return;
         }
-
+    
+        try {
+            busy = true;
+            render();
+    
+            await apiRequest("DELETE", null, id);
+    
+            await loadClients();
+    
+            setStatus("Client deleted successfully.");
+    
+        } catch (error) {
+            console.error(error);
+            setStatus("Unable to delete client.");
+        } finally {
+            busy = false;
+            render();
+        }
     }
-
 
     // ==========================================
     // 10. INPUT FIELD HELPERS

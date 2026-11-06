@@ -180,6 +180,7 @@
         th {
             background: #f9fafb;
             font-weight: bold;
+            text-align: center;
         }
 
         td input, td select {
@@ -188,8 +189,14 @@
 
         .actions {
             display: flex;
+            justify-content: center;
+            align-items: center;
             gap: 6px;
             flex-wrap: wrap;
+        }
+
+        td:last-child {
+            text-align: center;
         }
 
         #empty {

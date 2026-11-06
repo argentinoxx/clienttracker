@@ -23,12 +23,20 @@
     let editingId = null;
     let busy = false;
 
+    let searchText = "";
+    let selectedStatus = "";
+
     const $ = (id) => document.getElementById(id);
 
     const form = $("f");
     const rowsContainer = $("rows");
     const emptyMessage = $("empty");
     const count = $("count");
+    const showing = $("showing");
+
+    const searchInput = $("searchInput");
+    const statusFilter = $("statusFilter");
+
     const syncStatus = $("syncStatus");
 
 
@@ -37,8 +45,12 @@
     // ==========================================
 
     function setStatus(message, isError = false) {
+
         syncStatus.textContent = message;
-        syncStatus.style.color = isError ? "#dc2626" : "#666";
+
+        syncStatus.style.color =
+            isError ? "#dc2626" : "#666";
+
     }
 
 
@@ -47,7 +59,9 @@
     // ==========================================
 
     function escapeHTML(value) {
+
         return String(value ?? "").replace(/[&<>"']/g, function (char) {
+
             return {
                 "&": "&amp;",
                 "<": "&lt;",
@@ -55,7 +69,9 @@
                 '"': "&quot;",
                 "'": "&#39;"
             }[char];
+
         });
+
     }
 
 
@@ -64,23 +80,34 @@
     // ==========================================
 
     function toDatabase(data) {
+
         const result = {};
 
         FIELD_KEYS.forEach(key => {
+
             result[DB_FIELDS[key]] = data[key] || null;
+
         });
 
         return result;
+
     }
 
+
     function fromDatabase(client) {
-        const result = { id: client.id };
+
+        const result = {
+            id: client.id
+        };
 
         FIELD_KEYS.forEach(key => {
+
             result[key] = client[DB_FIELDS[key]] || "";
+
         });
 
         return result;
+
     }
 
 
@@ -104,7 +131,9 @@
         let url = API_URL;
 
         if (id) {
+
             url += "?id=" + encodeURIComponent(id);
+
         }
 
         const response = await fetch(url, options);
@@ -112,18 +141,25 @@
         let result = null;
 
         try {
+
             result = await response.json();
+
         } catch (error) {
+
             result = null;
+
         }
 
         if (!response.ok) {
+
             throw new Error(
                 result?.error || "Something went wrong with the database."
             );
+
         }
 
         return result;
+
     }
 
 
@@ -136,6 +172,7 @@
         setStatus("Loading client records...");
 
         try {
+
             const data = await apiRequest("GET");
 
             clients = data.map(fromDatabase);
@@ -147,9 +184,13 @@
             setStatus("Connected to database.");
 
         } catch (error) {
+
             console.error(error);
+
             setStatus("Unable to load client records.", true);
+
         }
+
     }
 
 
@@ -162,9 +203,11 @@
         if (busy) return;
 
         busy = true;
+
         setStatus("Adding client...");
 
         try {
+
             await apiRequest("POST", toDatabase(data));
 
             form.reset();
@@ -174,13 +217,22 @@
             setStatus("Client added successfully.");
 
         } catch (error) {
+
             console.error(error);
-            setStatus("Unable to add client: " + error.message, true);
+
+            setStatus(
+                "Unable to add client: " + error.message,
+                true
+            );
 
         } finally {
+
             busy = false;
+
             render();
+
         }
+
     }
 
 
@@ -193,9 +245,11 @@
         if (busy) return;
 
         busy = true;
+
         setStatus("Saving changes...");
 
         try {
+
             await apiRequest("PUT", {
                 id: id,
                 ...toDatabase(data)
@@ -208,13 +262,22 @@
             setStatus("Client updated successfully.");
 
         } catch (error) {
+
             console.error(error);
-            setStatus("Unable to update client: " + error.message, true);
+
+            setStatus(
+                "Unable to update client: " + error.message,
+                true
+            );
 
         } finally {
+
             busy = false;
+
             render();
+
         }
+
     }
 
 
@@ -233,13 +296,17 @@
         if (!confirmed) return;
 
         busy = true;
+
         setStatus("Deleting client...");
 
         try {
+
             await apiRequest("DELETE", null, id);
 
             if (editingId === id) {
+
                 editingId = null;
+
             }
 
             await loadClients();
@@ -247,13 +314,22 @@
             setStatus("Client deleted successfully.");
 
         } catch (error) {
+
             console.error(error);
-            setStatus("Unable to delete client: " + error.message, true);
+
+            setStatus(
+                "Unable to delete client: " + error.message,
+                true
+            );
 
         } finally {
+
             busy = false;
+
             render();
+
         }
+
     }
 
 
@@ -263,14 +339,24 @@
 
     function getStatusOptions(currentStatus) {
 
-        const statuses = ["Sent", "Approved", "Rejected", "Pending"];
+        const statuses = [
+            "Sent",
+            "Approved",
+            "Rejected",
+            "Pending"
+        ];
 
         return statuses.map(status => `
-            <option value="${status}"
-                ${currentStatus === status ? "selected" : ""}>
+
+            <option
+                value="${status}"
+                ${currentStatus === status ? "selected" : ""}
+            >
                 ${status}
             </option>
+
         `).join("");
+
     }
 
 
@@ -278,80 +364,166 @@
 
         const value = row[key] || "";
 
+        // READ-ONLY MODE
         if (!isEditing) {
+
             return escapeHTML(value);
+
         }
 
+        // STATUS DROPDOWN
         if (key === "proposalstatus") {
+
             return `
+
                 <select name="${key}">
+
                     <option value="">Select Status</option>
+
                     ${getStatusOptions(value)}
+
                 </select>
+
             `;
+
         }
 
+        // DATE INPUTS
         if (["f1", "f2", "f3"].includes(key)) {
+
             return `
+
                 <input
                     type="date"
                     name="${key}"
                     value="${escapeHTML(value)}"
                 >
+
             `;
+
         }
 
+        // TEXT INPUTS
         return `
+
             <input
                 type="text"
                 name="${key}"
                 value="${escapeHTML(value)}"
                 ${key === "name" ? "required" : ""}
             >
+
         `;
+
     }
 
 
     // ==========================================
-    // 11. RENDER TABLE
+    // 11. RENDER TABLE + FILTERS
     // ==========================================
 
     function render() {
 
         count.textContent = clients.length;
 
-        emptyMessage.style.display =
-            clients.length === 0 ? "block" : "none";
+        // SEARCH FILTER
+        const filteredClients = clients.filter(row => {
 
-        rowsContainer.innerHTML = clients.map(row => {
+            const searchValue = searchText.toLowerCase();
+
+            const matchesSearch = [
+
+                row.name,
+                row.company,
+                row.proposaltitle,
+                row.proposalstatus
+
+            ].some(value =>
+
+                String(value || "")
+                    .toLowerCase()
+                    .includes(searchValue)
+
+            );
+
+            // STATUS FILTER
+            const matchesStatus =
+
+                selectedStatus === "" ||
+                row.proposalstatus === selectedStatus;
+
+            return matchesSearch && matchesStatus;
+
+        });
+
+
+        showing.textContent = filteredClients.length;
+
+
+        // EMPTY MESSAGE
+        emptyMessage.style.display =
+
+            filteredClients.length === 0 ? "block" : "none";
+
+
+        emptyMessage.textContent =
+
+            clients.length === 0
+                ? "No client records found."
+                : "No matching clients found.";
+
+
+        // TABLE ROWS
+        rowsContainer.innerHTML = filteredClients.map(row => {
 
             const isEditing = editingId === row.id;
+
             const anotherIsEditing =
+
                 editingId !== null && !isEditing;
 
+
             return `
+
                 <tr data-id="${escapeHTML(row.id)}">
 
-                    <td>${renderField(row, "name", isEditing)}</td>
-
-                    <td>${renderField(row, "company", isEditing)}</td>
-
-                    <td>${renderField(row, "proposaltitle", isEditing)}</td>
-
-                    <td>${renderField(row, "proposalstatus", isEditing)}</td>
-
-                    <td>${renderField(row, "f1", isEditing)}</td>
-
-                    <td>${renderField(row, "f2", isEditing)}</td>
-
-                    <td>${renderField(row, "f3", isEditing)}</td>
+                    <td>
+                        ${renderField(row, "name", isEditing)}
+                    </td>
 
                     <td>
+                        ${renderField(row, "company", isEditing)}
+                    </td>
+
+                    <td>
+                        ${renderField(row, "proposaltitle", isEditing)}
+                    </td>
+
+                    <td>
+                        ${renderField(row, "proposalstatus", isEditing)}
+                    </td>
+
+                    <td>
+                        ${renderField(row, "f1", isEditing)}
+                    </td>
+
+                    <td>
+                        ${renderField(row, "f2", isEditing)}
+                    </td>
+
+                    <td>
+                        ${renderField(row, "f3", isEditing)}
+                    </td>
+
+                    <td>
+
                         <div class="actions">
 
                             ${
                                 isEditing
+
                                 ? `
+
                                     <button
                                         type="button"
                                         class="save-btn"
@@ -369,8 +541,11 @@
                                     >
                                         Cancel
                                     </button>
+
                                 `
+
                                 : `
+
                                     <button
                                         type="button"
                                         class="edit-btn"
@@ -388,16 +563,21 @@
                                     >
                                         Delete
                                     </button>
+
                                 `
+
                             }
 
                         </div>
+
                     </td>
 
                 </tr>
+
             `;
 
         }).join("");
+
     }
 
 
@@ -411,13 +591,18 @@
 
         FIELD_KEYS.forEach(key => {
 
-            const field = rowElement.querySelector(`[name="${key}"]`);
+            const field = rowElement.querySelector(
+                `[name="${key}"]`
+            );
 
-            data[key] = field ? field.value.trim() : "";
+            data[key] = field
+                ? field.value.trim()
+                : "";
 
         });
 
         return data;
+
     }
 
 
@@ -432,21 +617,35 @@
         if (busy || editingId !== null) return;
 
         const formData = new FormData(form);
+
         const data = {};
 
         FIELD_KEYS.forEach(key => {
-            data[key] = String(formData.get(key) || "").trim();
+
+            data[key] = String(
+                formData.get(key) || ""
+            ).trim();
+
         });
 
+
         if (!data.name) {
+
             alert("Please enter the client name.");
+
             return;
+
         }
 
+
         if (!data.proposalstatus) {
+
             alert("Please select a proposal status.");
+
             return;
+
         }
+
 
         await addClient(data);
 
@@ -459,7 +658,9 @@
 
     rowsContainer.addEventListener("click", async function (event) {
 
-        const button = event.target.closest("button[data-action]");
+        const button = event.target.closest(
+            "button[data-action]"
+        );
 
         if (!button || busy) return;
 
@@ -468,6 +669,7 @@
         if (!rowElement) return;
 
         const id = rowElement.dataset.id;
+
         const action = button.dataset.action;
 
         const client = clients.find(item => item.id === id);
@@ -485,6 +687,7 @@
             render();
 
             return;
+
         }
 
 
@@ -498,6 +701,7 @@
             render();
 
             return;
+
         }
 
 
@@ -508,19 +712,29 @@
 
             const data = getRowData(rowElement);
 
+
             if (!data.name) {
+
                 alert("Client name is required.");
+
                 return;
+
             }
 
+
             if (!data.proposalstatus) {
+
                 alert("Please select a proposal status.");
+
                 return;
+
             }
+
 
             await updateClient(id, data);
 
             return;
+
         }
 
 
@@ -537,7 +751,33 @@
 
 
     // ==========================================
-    // 15. INITIAL LOAD
+    // 15. SEARCH CLIENTS
+    // ==========================================
+
+    searchInput.addEventListener("input", function () {
+
+        searchText = this.value.trim();
+
+        render();
+
+    });
+
+
+    // ==========================================
+    // 16. FILTER BY STATUS
+    // ==========================================
+
+    statusFilter.addEventListener("change", function () {
+
+        selectedStatus = this.value;
+
+        render();
+
+    });
+
+
+    // ==========================================
+    // 17. INITIAL LOAD
     // ==========================================
 
     loadClients();

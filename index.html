@@ -19,6 +19,15 @@
             padding: 30px 15px;
             color: #333;
         }
+        
+        .main-container {
+            background: white;
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
 
         .wrap {
             max-width: 1200px;
@@ -321,16 +330,17 @@
 </head>
 
 <body>
+    <div class="main-container">
 
 <div class="wrap">
 
     <h1 style="color:#b1fbcd">Client Follow-Up Tracker</h1>
 
-    <p class="sub" style="white">
+    <p class="sub" style="color:#ffffff">
         Keep track of your clients and proposal follow-ups.
     </p>
 
-    <p id="syncStatus" class="note" style="color:white">
+    <p id="syncStatus" class="note" style="color:#ffffff">
         Connecting to database...
     </p>
 
@@ -504,6 +514,7 @@
 
     </div>
 
+</div>
 </div>
 
 <script src="script.js"></script>

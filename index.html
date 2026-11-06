@@ -408,6 +408,30 @@
             background: #dfdfdf;
             color: #000000;
         }
+        /* ADD NEW CLIENT DARK HEADER */
+
+        .add-client-card {
+            padding: 0;
+            overflow: hidden;
+            background: #ffffff;
+            border: none;
+        }
+        
+        .add-client-header {
+            background: #152239;
+            padding: 25px;
+            margin: 0;
+        }
+        
+        .add-client-header h2 {
+            color: #ffffff;
+            margin: 0;
+        }
+        
+        .add-client-content {
+            background: #ffffff;
+            padding: 25px;
+        }
     </style>
 </head>
 
@@ -429,10 +453,14 @@
 
         <!-- ADD NEW CLIENT -->
 
-        <div class="card">
+        <div class="card add-client-card">
 
+        <div class="add-client-header">
             <h2>Add New Client</h2>
-
+        </div>
+    
+        <div class="add-client-content">
+    
             <form id="f">
 
                 <!-- FIRST ROW -->
@@ -509,6 +537,7 @@
                 </button>
 
             </form>
+        </div>
 
         </div>
 

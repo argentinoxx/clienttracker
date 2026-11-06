@@ -156,6 +156,37 @@
                 padding: 15px;
             }
         }
+        .records-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.records-header h2 {
+    margin-bottom: 5px;
+}
+
+.records-header .note {
+    margin-bottom: 0;
+}
+
+.search-box {
+    width: 280px;
+    max-width: 100%;
+}
+
+.search-box input {
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .search-box {
+        width: 100%;
+    }
+}
     </style>
 </head>
 
@@ -227,8 +258,23 @@
     <!-- CLIENT TABLE -->
     <div class="card">
 
+        <div class="records-header">
+    <div>
         <h2>Client Records</h2>
-        <p class="note">Total clients: <span id="count">0</span></p>
+        <p class="note">
+            Total clients: <span id="count">0</span>
+            | Showing: <span id="showing">0</span>
+        </p>
+    </div>
+
+    <div class="search-box">
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search clients..."
+        >
+    </div>
+</div>
 
         <div class="table-wrap">
 

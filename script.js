@@ -1,22 +1,11 @@
 
 (function () {
-    "use strict";
 
     // ==========================================
     // 1. SETTINGS
     // ==========================================
 
     const API_URL = "/api/clients";
-
-    const KEYS = [
-        "name",
-        "company",
-        "proposaltitle",
-        "proposalstatus",
-        "f1",
-        "f2",
-        "f3"
-    ];
 
     const DB_FIELDS = {
         name: "name",
@@ -28,387 +17,499 @@
         f3: "third_follow_up"
     };
 
-    let rows = [];
+    const FIELD_KEYS = Object.keys(DB_FIELDS);
+
+    let clients = [];
     let editingId = null;
     let busy = false;
 
-    const $ = id => document.getElementById(id);
+    const $ = (id) => document.getElementById(id);
 
     const form = $("f");
-    const tableBody = $("rows");
+    const rowsContainer = $("rows");
+    const emptyMessage = $("empty");
+    const count = $("count");
+    const syncStatus = $("syncStatus");
+
 
     // ==========================================
     // 2. STATUS MESSAGE
     // ==========================================
 
-    function setStatus(message) {
-        const el = $("syncStatus");
-
-        if (el) {
-            el.textContent = message;
-        }
+    function setStatus(message, isError = false) {
+        syncStatus.textContent = message;
+        syncStatus.style.color = isError ? "#dc2626" : "#666";
     }
 
+
     // ==========================================
-    // 3. HTML SAFETY
+    // 3. SAFE HTML OUTPUT
     // ==========================================
 
     function escapeHTML(value) {
-        return String(value ?? "").replace(/[&<>"']/g, char => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;"
-        })[char]);
+        return String(value ?? "").replace(/[&<>"']/g, function (char) {
+            return {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            }[char];
+        });
     }
 
+
     // ==========================================
-    // 4. DATABASE FIELD MAPPING
+    // 4. DATABASE FIELD CONVERSION
     // ==========================================
 
     function toDatabase(data) {
         const result = {};
 
-        KEYS.forEach(key => {
+        FIELD_KEYS.forEach(key => {
             result[DB_FIELDS[key]] = data[key] || null;
         });
 
         return result;
     }
 
-    function fromDatabase(row) {
-        const result = {
-            id: row.id
-        };
+    function fromDatabase(client) {
+        const result = { id: client.id };
 
-        KEYS.forEach(key => {
-            result[key] = row[DB_FIELDS[key]] ?? "";
+        FIELD_KEYS.forEach(key => {
+            result[key] = client[DB_FIELDS[key]] || "";
         });
 
         return result;
     }
 
+
     // ==========================================
     // 5. API REQUEST
     // ==========================================
 
-    async function apiRequest(url, options = {}) {
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {})
-            }
-        });
+    async function apiRequest(method, body = null, id = null) {
 
-        const result = await response.json().catch(() => null);
+        const options = {
+            method: method,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        };
+
+        if (body) {
+            options.body = JSON.stringify(body);
+        }
+
+        let url = API_URL;
+
+        if (id) {
+            url += "?id=" + encodeURIComponent(id);
+        }
+
+        const response = await fetch(url, options);
+
+        let result = null;
+
+        try {
+            result = await response.json();
+        } catch (error) {
+            result = null;
+        }
 
         if (!response.ok) {
             throw new Error(
-                result?.error || `Request failed (${response.status})`
+                result?.error || "Something went wrong with the database."
             );
         }
 
         return result;
     }
 
+
     // ==========================================
     // 6. LOAD CLIENTS
     // ==========================================
 
     async function loadClients() {
-        setStatus("Loading clients...");
+
+        setStatus("Loading client records...");
 
         try {
-            const data = await apiRequest(API_URL);
+            const data = await apiRequest("GET");
 
-            rows = Array.isArray(data)
-                ? data.map(fromDatabase)
-                : [];
+            clients = data.map(fromDatabase);
+
+            editingId = null;
 
             render();
 
-            setStatus("Connected to database");
+            setStatus("Connected to database.");
 
         } catch (error) {
-            console.error("Load error:", error);
-
-            setStatus("Could not load clients: " + error.message);
+            console.error(error);
+            setStatus("Unable to load client records.", true);
         }
     }
+
 
     // ==========================================
     // 7. ADD CLIENT
     // ==========================================
 
     async function addClient(data) {
-        const saved = await apiRequest(API_URL, {
-            method: "POST",
-            body: JSON.stringify(toDatabase(data))
-        });
 
-        rows.unshift(fromDatabase(saved));
+        if (busy) return;
+
+        busy = true;
+        setStatus("Adding client...");
+
+        try {
+            await apiRequest("POST", toDatabase(data));
+
+            form.reset();
+
+            await loadClients();
+
+            setStatus("Client added successfully.");
+
+        } catch (error) {
+            console.error(error);
+            setStatus("Unable to add client: " + error.message, true);
+
+        } finally {
+            busy = false;
+            render();
+        }
     }
+
 
     // ==========================================
     // 8. UPDATE CLIENT
     // ==========================================
 
-    async function updateClient(id, updates) {
-        const saved = await apiRequest(API_URL, {
-            method: "PUT",
-            body: JSON.stringify({
-                id,
-                ...toDatabase(updates)
-            })
-        });
+    async function updateClient(id, data) {
 
-        const index = rows.findIndex(row => row.id === id);
+        if (busy) return;
 
-        if (index !== -1) {
-            rows[index] = fromDatabase(saved);
+        busy = true;
+        setStatus("Saving changes...");
+
+        try {
+            await apiRequest("PUT", {
+                id: id,
+                ...toDatabase(data)
+            });
+
+            editingId = null;
+
+            await loadClients();
+
+            setStatus("Client updated successfully.");
+
+        } catch (error) {
+            console.error(error);
+            setStatus("Unable to update client: " + error.message, true);
+
+        } finally {
+            busy = false;
+            render();
         }
     }
+
 
     // ==========================================
     // 9. DELETE CLIENT
     // ==========================================
 
     async function deleteClient(id) {
-        await apiRequest(
-            `${API_URL}?id=${encodeURIComponent(id)}`,
-            {
-                method: "DELETE"
-            }
+
+        if (busy) return;
+
+        const confirmed = confirm(
+            "Are you sure you want to delete this client?"
         );
 
-        rows = rows.filter(row => row.id !== id);
+        if (!confirmed) return;
+
+        busy = true;
+        setStatus("Deleting client...");
+
+        try {
+            await apiRequest("DELETE", null, id);
+
+            if (editingId === id) {
+                editingId = null;
+            }
+
+            await loadClients();
+
+            setStatus("Client deleted successfully.");
+
+        } catch (error) {
+            console.error(error);
+            setStatus("Unable to delete client: " + error.message, true);
+
+        } finally {
+            busy = false;
+            render();
+        }
     }
 
+
     // ==========================================
-    // 10. PROPOSAL STATUS OPTIONS
+    // 10. INPUT FIELD HELPERS
     // ==========================================
 
     function getStatusOptions(currentStatus) {
-        const field = form.elements.namedItem("proposalstatus");
 
-        if (field && field.tagName === "SELECT") {
-            const options = Array.from(field.options);
+        const statuses = ["Sent", "Approved", "Rejected", "Pending"];
 
-            if (
-                currentStatus &&
-                !options.some(option => option.value === currentStatus)
-            ) {
-                options.push(new Option(currentStatus, currentStatus));
-            }
+        return statuses.map(status => `
+            <option value="${status}"
+                ${currentStatus === status ? "selected" : ""}>
+                ${status}
+            </option>
+        `).join("");
+    }
 
-            return options.map(option => ({
-                value: option.value,
-                label: option.textContent
-            }));
+
+    function renderField(row, key, isEditing) {
+
+        const value = row[key] || "";
+
+        if (!isEditing) {
+            return escapeHTML(value);
         }
 
-        return ["Sent", "Approved", "Rejected", "Pending"]
-            .map(value => ({
-                value,
-                label: value
-            }));
-    }
-
-    
-    // ==========================================
-    // 11. TABLE RENDERING
-    // ==========================================
-
-    function statusSelect(row, isEditing) {
-        const options = getStatusOptions(row.proposalstatus);
-
-        return isEditing
-            ? `
-                <select name="proposalstatus">
-                    ${options.map(option => `
-                        <option
-                            value="${escapeHTML(option.value)}"
-                            ${option.value === row.proposalstatus ? "selected" : ""}
-                        >
-                            ${escapeHTML(option.label)}
-                        </option>
-                    `).join("")}
+        if (key === "proposalstatus") {
+            return `
+                <select name="${key}">
+                    <option value="">Select Status</option>
+                    ${getStatusOptions(value)}
                 </select>
-            `
-            : escapeHTML(row.proposalstatus);
-    }
+            `;
+        }
 
-    function dateInput(row, key, isEditing) {
-        return isEditing
-            ? `
+        if (["f1", "f2", "f3"].includes(key)) {
+            return `
                 <input
                     type="date"
                     name="${key}"
-                    value="${escapeHTML(row[key])}"
+                    value="${escapeHTML(value)}"
                 >
-            `
-            : escapeHTML(row[key]);
+            `;
+        }
+
+        return `
+            <input
+                type="text"
+                name="${key}"
+                value="${escapeHTML(value)}"
+                ${key === "name" ? "required" : ""}
+            >
+        `;
     }
 
+
+    // ==========================================
+    // 11. RENDER TABLE
+    // ==========================================
+
     function render() {
-        if (!tableBody) return;
 
-        if (rows.length === 0) {
-            tableBody.innerHTML = "";
+        count.textContent = clients.length;
 
-            if ($("empty")) {
-                $("empty").style.display = "";
-            }
+        emptyMessage.style.display =
+            clients.length === 0 ? "block" : "none";
 
-        } else {
-            if ($("empty")) {
-                $("empty").style.display = "none";
-            }
+        rowsContainer.innerHTML = clients.map(row => {
 
-            tableBody.innerHTML = rows.map(row => {
-                const isEditing = editingId === row.id;
+            const isEditing = editingId === row.id;
+            const anotherIsEditing =
+                editingId !== null && !isEditing;
 
-                return `
-                    <tr>
-                        <td>
-                            ${isEditing
-                                ? `<input name="name" value="${escapeHTML(row.name)}">`
-                                : escapeHTML(row.name)}
-                        </td>
+            return `
+                <tr data-id="${escapeHTML(row.id)}">
 
-                        <td>
-                            ${isEditing
-                                ? `<input name="company" value="${escapeHTML(row.company)}">`
-                                : escapeHTML(row.company)}
-                        </td>
+                    <td>${renderField(row, "name", isEditing)}</td>
 
-                        <td>
-                            ${isEditing
-                                ? `<input name="proposaltitle" value="${escapeHTML(row.proposaltitle)}">`
-                                : escapeHTML(row.proposaltitle)}
-                        </td>
+                    <td>${renderField(row, "company", isEditing)}</td>
 
-                        <td>${statusSelect(row, isEditing)}</td>
+                    <td>${renderField(row, "proposaltitle", isEditing)}</td>
 
-                        <td>${dateInput(row, "f1", isEditing)}</td>
+                    <td>${renderField(row, "proposalstatus", isEditing)}</td>
 
-                        <td>${dateInput(row, "f2", isEditing)}</td>
+                    <td>${renderField(row, "f1", isEditing)}</td>
 
-                        <td>${dateInput(row, "f3", isEditing)}</td>
+                    <td>${renderField(row, "f2", isEditing)}</td>
 
-                        <td>
-                            ${isEditing
+                    <td>${renderField(row, "f3", isEditing)}</td>
+
+                    <td>
+                        <div class="actions">
+
+                            ${
+                                isEditing
                                 ? `
-                                    <button type="button"
+                                    <button
+                                        type="button"
+                                        class="save-btn"
                                         data-action="save"
-                                        data-id="${escapeHTML(row.id)}">
+                                        ${busy ? "disabled" : ""}
+                                    >
                                         Save
                                     </button>
 
-                                    <button type="button"
-                                        class="ghost"
+                                    <button
+                                        type="button"
+                                        class="cancel-btn"
                                         data-action="cancel"
-                                        data-id="${escapeHTML(row.id)}">
+                                        ${busy ? "disabled" : ""}
+                                    >
                                         Cancel
                                     </button>
                                 `
                                 : `
-                                    <button type="button"
+                                    <button
+                                        type="button"
+                                        class="edit-btn"
                                         data-action="edit"
-                                        data-id="${escapeHTML(row.id)}">
+                                        ${anotherIsEditing || busy ? "disabled" : ""}
+                                    >
                                         Edit
                                     </button>
 
-                                    <button type="button"
-                                        class="del"
+                                    <button
+                                        type="button"
+                                        class="delete-btn"
                                         data-action="delete"
-                                        data-id="${escapeHTML(row.id)}">
+                                        ${editingId !== null || busy ? "disabled" : ""}
+                                    >
                                         Delete
                                     </button>
                                 `
                             }
-                        </td>
-                    </tr>
-                `;
-            }).join("");
-        }
 
-        if ($("count")) {
-            $("count").textContent = rows.length;
-        }
+                        </div>
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
     }
 
-    // ==========================================
-    // 12. FORM RESET
-    // ==========================================
-
-    function clearForm() {
-        form.reset();
-
-        editingId = null;
-
-        const submit = form.querySelector('[type="submit"]');
-
-        if (submit) {
-            submit.textContent = "Add Client";
-        }
-    }
 
     // ==========================================
-    // 13. EDIT CLIENT
+    // 12. GET ROW VALUES
     // ==========================================
 
-    function editClient(id) {
-        const row = rows.find(item => item.id === id);
+    function getRowData(rowElement) {
 
-        if (!row) return;
+        const data = {};
 
-        editingId = id;
+        FIELD_KEYS.forEach(key => {
 
-        KEYS.forEach(key => {
-            const field = form.elements.namedItem(key);
+            const field = rowElement.querySelector(`[name="${key}"]`);
 
-            if (field) {
-                field.value = row[key] ?? "";
-            }
+            data[key] = field ? field.value.trim() : "";
+
         });
 
-        const submit = form.querySelector('[type="submit"]');
-
-        if (submit) {
-            submit.textContent = "Update Client";
-        }
-
-        form.scrollIntoView({
-            behavior: "smooth",
-            block: "center"
-        });
+        return data;
     }
 
+
     // ==========================================
-    // 14. FORM SUBMISSION
+    // 13. ADD CLIENT FORM
     // ==========================================
 
-    if (form) {
-        form.addEventListener("submit", async function (event) {
-            event.preventDefault();
+    form.addEventListener("submit", async function (event) {
 
-            if (busy) return;
+        event.preventDefault();
 
-            const data = {};
+        if (busy || editingId !== null) return;
 
-            KEYS.forEach(key => {
-                const field = form.elements.namedItem(key);
+        const formData = new FormData(form);
+        const data = {};
 
-                data[key] = field
-                    ? field.value.trim()
-                    : "";
-            });
+        FIELD_KEYS.forEach(key => {
+            data[key] = String(formData.get(key) || "").trim();
+        });
+
+        if (!data.name) {
+            alert("Please enter the client name.");
+            return;
+        }
+
+        if (!data.proposalstatus) {
+            alert("Please select a proposal status.");
+            return;
+        }
+
+        await addClient(data);
+
+    });
+
+
+    // ==========================================
+    // 14. TABLE BUTTON ACTIONS
+    // ==========================================
+
+    rowsContainer.addEventListener("click", async function (event) {
+
+        const button = event.target.closest("button[data-action]");
+
+        if (!button || busy) return;
+
+        const rowElement = button.closest("tr");
+
+        if (!rowElement) return;
+
+        const id = rowElement.dataset.id;
+        const action = button.dataset.action;
+
+        const client = clients.find(item => item.id === id);
+
+        if (!client) return;
+
+
+        // EDIT
+        if (action === "edit") {
+
+            if (editingId !== null) return;
+
+            editingId = id;
+
+            render();
+
+            return;
+        }
+
+
+        // CANCEL
+        if (action === "cancel") {
+
+            if (editingId !== id) return;
+
+            editingId = null;
+
+            render();
+
+            return;
+        }
+
+
+        // SAVE
+        if (action === "save") {
+
+            if (editingId !== id) return;
+
+            const data = getRowData(rowElement);
 
             if (!data.name) {
-                alert("Please enter the client name.");
+                alert("Client name is required.");
                 return;
             }
 
@@ -417,170 +518,26 @@
                 return;
             }
 
-            busy = true;
+            await updateClient(id, data);
 
-            setStatus("Saving...");
+            return;
+        }
 
-            try {
-                if (editingId) {
-                    await updateClient(editingId, data);
-                } else {
-                    await addClient(data);
-                }
 
-                clearForm();
+        // DELETE
+        if (action === "delete") {
 
-                render();
+            if (editingId !== null) return;
 
-                setStatus("Saved successfully");
+            await deleteClient(id);
 
-            } catch (error) {
-                console.error("Save error:", error);
+        }
 
-                alert("Could not save client: " + error.message);
+    });
 
-                setStatus("Save failed");
-
-            } finally {
-                busy = false;
-            }
-        });
-
-        form.addEventListener("reset", function () {
-            editingId = null;
-
-            const submit = form.querySelector('[type="submit"]');
-
-            if (submit) {
-                submit.textContent = "Add Client";
-            }
-        });
-    }
-
-    
-    // ==========================================
-    // 15. TABLE ACTIONS
-    // ==========================================
-
-    if (tableBody) {
-                if (!updates.name) {
-                    alert("Please enter the client name.");
-                    return;
-                }
-
-                if (!updates.proposalstatus) {
-                    alert("Please select a proposal status.");
-                    return;
-                }
-
-                busy = true;
-                setStatus("Saving changes...");
-
-                try {
-                    await updateClient(id, updates);
-
-                    editingId = null;
-                    render();
-
-                    setStatus("Changes saved successfully");
-
-                } catch (error) {
-                    console.error(error);
-                    alert("Could not save changes: " + error.message);
-                    setStatus("Update failed");
-
-                } finally {
-                    busy = false;
-                }
-
-                return;
-            }
-
-            if (action === "delete") {
-                if (!confirm("Are you sure you want to delete this client?")) {
-                    return;
-                }
-
-                busy = true;
-                setStatus("Deleting...");
-
-                try {
-                    await deleteClient(id);
-
-                    editingId = null;
-                    render();
-
-                    setStatus("Client deleted");
-
-                } catch (error) {
-                    console.error(error);
-                    alert("Could not delete client: " + error.message);
-                    setStatus("Delete failed");
-
-                } finally {
-                    busy = false;
-                }
-            }
-        });
-    }
-
-        // ==========================================
-        // 16. INLINE STATUS AND DATE UPDATES
-        // ==========================================
-
-        tableBody.addEventListener("change", async function (event) {
-            const field = event.target;
-
-            if (
-                !field.matches(".row-status, .row-date") ||
-                busy
-            ) {
-                return;
-            }
-
-            const id = field.dataset.id;
-
-            const key = field.matches(".row-status")
-                ? "proposalstatus"
-                : field.dataset.field;
-
-            const currentRow = rows.find(row => row.id === id);
-
-            if (!currentRow) return;
-
-            const updates = {
-                ...currentRow,
-                [key]: field.value
-            };
-
-            busy = true;
-
-            setStatus("Updating...");
-
-            try {
-                await updateClient(id, updates);
-
-                render();
-
-                setStatus("Changes saved");
-
-            } catch (error) {
-                console.error("Update error:", error);
-
-                alert("Could not update client: " + error.message);
-
-                render();
-
-                setStatus("Update failed");
-
-            } finally {
-                busy = false;
-            }
-        });
-    }
 
     // ==========================================
-    // 17. START WEBSITE
+    // 15. INITIAL LOAD
     // ==========================================
 
     loadClients();

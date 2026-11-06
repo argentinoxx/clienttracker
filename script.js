@@ -564,20 +564,33 @@
 
                                     <button
                                         type="button"
-                                        class="edit-btn"
+                                        class="icon-btn edit-btn"
                                         data-action="edit"
+                                        title="Edit client"
+                                        aria-label="Edit client"
                                         ${anotherIsEditing || busy ? "disabled" : ""}
                                     >
-                                        Edit
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M12 20h9"/>
+                                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+                                        </svg>
                                     </button>
-
+                                    
                                     <button
                                         type="button"
-                                        class="delete-btn"
+                                        class="icon-btn delete-btn"
                                         data-action="delete"
+                                        title="Delete client"
+                                        aria-label="Delete client"
                                         ${editingId !== null || busy ? "disabled" : ""}
                                     >
-                                        Delete
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M3 6h18"/>
+                                            <path d="M8 6V4h8v2"/>
+                                            <path d="M19 6l-1 14H6L5 6"/>
+                                            <path d="M10 11v5"/>
+                                            <path d="M14 11v5"/>
+                                        </svg>
                                     </button>
 
                                 `

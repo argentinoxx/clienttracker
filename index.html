@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Client Follow-Up Tracker</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f5f7fa;--card:#fff;--text:#1b2733;--muted:#5d6b7a;--line:#d9e0e8;--accent:#1f4e78;--accentText:#fff;--danger:#b42318;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10161d;--card:#18212b;--text:#e8eef4;--muted:#9aa8b6;--line:#2c3947;--accent:#5aa2dc;--accentText:#08121c;--danger:#f97066;color-scheme:dark}}
@@ -55,6 +54,7 @@ select:focus {
 <main>
   <h1>Client Follow-Up Tracker</h1>
   <p class="sub">Enter a client below.</p>
+    <p id="syncStatus" class="note">Connecting to database...</p>
 
   <div class="card">
     

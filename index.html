@@ -238,8 +238,22 @@
             color: #07344b;
         }
 
-        tbody tr:hover {
-            background: #f5fbf7;
+       tbody tr {
+            background: #b1fbcd;
+        }
+        
+        tbody td {
+            background: #b1fbcd;
+            color: #152239;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+        
+        /* HOVER EFFECT */
+        
+        tbody tr:hover,
+        tbody tr:hover td {
+            background: #ffffff;
+            color: #07344b;
         }
 
         td:nth-child(4) {

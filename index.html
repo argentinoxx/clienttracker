@@ -177,6 +177,8 @@
             vertical-align: middle;
         }
 
+        /* CENTER ALL COLUMN HEADINGS */
+
         th {
             background: #f9fafb;
             font-weight: bold;
@@ -186,6 +188,52 @@
         td input, td select {
             min-width: 110px;
         }
+
+        /* CENTER STATUS COLUMN */
+
+        td:nth-child(4) {
+            text-align: center;
+        }
+
+        /* STATUS COLOR LABELS */
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-sent {
+            background: rgba(59, 130, 246, 0.14);
+            color: #2563eb;
+        }
+
+        .status-rejected {
+            background: rgba(239, 68, 68, 0.14);
+            color: #dc2626;
+        }
+
+        .status-approved {
+            background: rgba(34, 197, 94, 0.14);
+            color: #16a34a;
+        }
+
+        .status-pending {
+            background: rgba(249, 115, 22, 0.14);
+            color: #ea580c;
+        }
+
+        /* CENTER FOLLOW-UP DATE COLUMNS */
+
+        td:nth-child(5),
+        td:nth-child(6),
+        td:nth-child(7) {
+            text-align: center;
+        }
+
+        /* CENTER ACTION BUTTONS */
 
         .actions {
             display: flex;
@@ -242,10 +290,7 @@
         Connecting to database...
     </p>
 
-
-    <!-- ================================== -->
     <!-- ADD CLIENT FORM -->
-    <!-- ================================== -->
 
     <div class="card">
 
@@ -257,40 +302,23 @@
 
                 <div>
                     <label for="name">Client Name *</label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        required
-                    >
+                    <input type="text" id="name" name="name" required>
                 </div>
 
                 <div>
                     <label for="company">Company</label>
-                    <input
-                        type="text"
-                        id="company"
-                        name="company"
-                    >
+                    <input type="text" id="company" name="company">
                 </div>
 
                 <div>
                     <label for="proposaltitle">Proposal Title</label>
-                    <input
-                        type="text"
-                        id="proposaltitle"
-                        name="proposaltitle"
-                    >
+                    <input type="text" id="proposaltitle" name="proposaltitle">
                 </div>
 
                 <div>
                     <label for="proposalstatus">Proposal Status *</label>
 
-                    <select
-                        id="proposalstatus"
-                        name="proposalstatus"
-                        required
-                    >
+                    <select id="proposalstatus" name="proposalstatus" required>
                         <option value="">Select Status</option>
                         <option value="Sent">Sent</option>
                         <option value="Approved">Approved</option>
@@ -301,29 +329,17 @@
 
                 <div>
                     <label for="f1">First Follow-Up</label>
-                    <input
-                        type="date"
-                        id="f1"
-                        name="f1"
-                    >
+                    <input type="date" id="f1" name="f1">
                 </div>
 
                 <div>
                     <label for="f2">Second Follow-Up</label>
-                    <input
-                        type="date"
-                        id="f2"
-                        name="f2"
-                    >
+                    <input type="date" id="f2" name="f2">
                 </div>
 
                 <div>
                     <label for="f3">Third Follow-Up</label>
-                    <input
-                        type="date"
-                        id="f3"
-                        name="f3"
-                    >
+                    <input type="date" id="f3" name="f3">
                 </div>
 
             </div>
@@ -336,10 +352,7 @@
 
     </div>
 
-
-    <!-- ================================== -->
     <!-- CLIENT RECORDS -->
-    <!-- ================================== -->
 
     <div class="card">
 
@@ -367,20 +380,17 @@
 
                 <div class="status-filter">
                     <select id="statusFilter">
-
                         <option value="">All Statuses</option>
                         <option value="Pending">Pending</option>
                         <option value="Sent">Sent</option>
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
-
                     </select>
                 </div>
 
             </div>
 
         </div>
-
 
         <div class="table-wrap">
 

@@ -51,10 +51,19 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
 
+        /* ADD CLIENT FORM */
+
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: 1.4fr 1.4fr 1.4fr 1fr;
             gap: 15px;
+        }
+
+        .followup-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
         }
 
         label {
@@ -97,6 +106,33 @@
             background: #f5f5f5;
             color: black;
         }
+        
+        .delete-btn {
+            background: #f5f5f5;
+            color: red;
+        }
+        
+        /* ICON BUTTONS */
+        
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            padding: 7px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+        }
+        
+        .icon-btn svg {
+            width: 17px;
+            height: 17px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
 
         .save-btn {
             background: #f5f5f5;
@@ -106,11 +142,6 @@
         .cancel-btn {
             background: #f5f5f5;
             color: black;
-        }
-
-        .delete-btn {
-            background: #f5f5f5;
-            color: red;
         }
 
         /* RECORDS HEADER */
@@ -177,8 +208,6 @@
             vertical-align: middle;
         }
 
-        /* CENTER ALL COLUMN HEADINGS */
-
         th {
             background: #f9fafb;
             font-weight: bold;
@@ -195,7 +224,7 @@
             text-align: center;
         }
 
-        /* STATUS COLOR LABELS */
+        /* STATUS COLORS */
 
         .status-badge {
             display: inline-block;
@@ -255,6 +284,16 @@
 
         /* MOBILE */
 
+        @media (max-width: 800px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .followup-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 15px 10px;
@@ -262,6 +301,11 @@
 
             .card {
                 padding: 15px;
+            }
+
+            .form-grid,
+            .followup-grid {
+                grid-template-columns: 1fr;
             }
 
             .filter-controls {
@@ -298,27 +342,46 @@
 
         <form id="f">
 
+            <!-- FIRST ROW: CLIENT INFORMATION -->
+
             <div class="form-grid">
 
                 <div>
                     <label for="name">Client Name *</label>
-                    <input type="text" id="name" name="name" required>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        required
+                    >
                 </div>
 
                 <div>
                     <label for="company">Company</label>
-                    <input type="text" id="company" name="company">
+                    <input
+                        type="text"
+                        id="company"
+                        name="company"
+                    >
                 </div>
 
                 <div>
                     <label for="proposaltitle">Proposal Title</label>
-                    <input type="text" id="proposaltitle" name="proposaltitle">
+                    <input
+                        type="text"
+                        id="proposaltitle"
+                        name="proposaltitle"
+                    >
                 </div>
 
                 <div>
                     <label for="proposalstatus">Proposal Status *</label>
 
-                    <select id="proposalstatus" name="proposalstatus" required>
+                    <select
+                        id="proposalstatus"
+                        name="proposalstatus"
+                        required
+                    >
                         <option value="">Select Status</option>
                         <option value="Sent">Sent</option>
                         <option value="Approved">Approved</option>
@@ -327,19 +390,37 @@
                     </select>
                 </div>
 
+            </div>
+
+            <!-- SECOND ROW: FOLLOW-UP DATES -->
+
+            <div class="followup-grid">
+
                 <div>
                     <label for="f1">First Follow-Up</label>
-                    <input type="date" id="f1" name="f1">
+                    <input
+                        type="date"
+                        id="f1"
+                        name="f1"
+                    >
                 </div>
 
                 <div>
                     <label for="f2">Second Follow-Up</label>
-                    <input type="date" id="f2" name="f2">
+                    <input
+                        type="date"
+                        id="f2"
+                        name="f2"
+                    >
                 </div>
 
                 <div>
                     <label for="f3">Third Follow-Up</label>
-                    <input type="date" id="f3" name="f3">
+                    <input
+                        type="date"
+                        id="f3"
+                        name="f3"
+                    >
                 </div>
 
             </div>

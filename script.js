@@ -1,680 +1,540 @@
 
 (function () {
+    "use strict";
 
     // ==========================================
-    // 1. INITIAL SETTINGS
+    // 1. SETTINGS
     // ==========================================
 
-    var KEYS = ["name", "company", "proposaltitle", "proposalstatus", "f1", "f2", "f3"];
+    const API_URL = "/api/clients";
 
-    var rows = [];
-    var LKEY = "client-tracker-rows";
+    const KEYS = [
+        "name",
+        "company",
+        "proposaltitle",
+        "proposalstatus",
+        "f1",
+        "f2",
+        "f3"
+    ];
 
-    var $ = function (id) {
-        return document.getElementById(id);
+    const DB_FIELDS = {
+        name: "name",
+        company: "company",
+        proposaltitle: "proposal_title",
+        proposalstatus: "proposal_status",
+        f1: "first_follow_up",
+        f2: "second_follow_up",
+        f3: "third_follow_up"
     };
 
-    var XLSXMIME =
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    let rows = [];
+    let editingId = null;
+    let busy = false;
 
-    var fh = null;
-    var selectedFile = null;
-    var supported = ("showOpenFilePicker" in window);
-    var connected = false;
+    const $ = id => document.getElementById(id);
 
+    const form = $("f");
+    const tableBody = $("rows");
 
     // ==========================================
-    // 2. BROWSER STORAGE
+    // 2. STATUS MESSAGE
     // ==========================================
 
-    function lsLoad() {
-        try {
-            return JSON.parse(localStorage.getItem(LKEY) || "[]");
-        } catch (e) {
-            return [];
+    function setStatus(message) {
+        const el = $("syncStatus");
+
+        if (el) {
+            el.textContent = message;
         }
     }
 
-    function lsSave() {
-        try {
-            localStorage.setItem(LKEY, JSON.stringify(rows));
-        } catch (e) {
-            console.error("Unable to save browser data:", e);
-        }
+    // ==========================================
+    // 3. HTML SAFETY
+    // ==========================================
+
+    function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, char => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[char]);
     }
 
-
     // ==========================================
-    // 3. DISPLAY CLIENT RECORDS
+    // 4. DATABASE FIELD MAPPING
     // ==========================================
 
-   
-function render() {
+    function toDatabase(data) {
+        const result = {};
 
-    var tb = $("rows");
-    tb.textContent = "";
-
-    rows.forEach(function(r) {
-
-        var tr = document.createElement("tr");
-
-        KEYS.forEach(function(k) {
-
-            var td = document.createElement("td");
-
-            // Proposal Status dropdown
-            if (k === "proposalStatus") {
-
-                var select = document.createElement("select");
-
-                ["Pending", "Sent", "Approved", "Rejected"]
-                    .forEach(function(status) {
-
-                        var option = document.createElement("option");
-                        option.value = status;
-                        option.textContent = status;
-
-                        select.appendChild(option);
-
-                    });
-
-                select.value = r[k] || "Pending";
-
-                select.addEventListener("change", function() {
-                    update(r, k, select.value);
-                });
-
-                td.appendChild(select);
-
-            }
-
-            // Follow-up date fields
-            else if (k === "f1" || k === "f2" || k === "f3") {
-
-                var input = document.createElement("input");
-
-                input.type = "date";
-                input.value = r[k] || "";
-
-                input.addEventListener("change", function() {
-                    update(r, k, input.value);
-                });
-
-                td.appendChild(input);
-
-            }
-
-            // Other text fields
-            else {
-
-                td.textContent = r[k] || "";
-
-            }
-
-            tr.appendChild(td);
-
+        KEYS.forEach(key => {
+            result[DB_FIELDS[key]] = data[key] || null;
         });
 
-        // Delete button
-        var td = document.createElement("td");
+        return result;
+    }
 
-        var btn = document.createElement("button");
-        btn.className = "del";
-        btn.type = "button";
-        btn.textContent = "Delete";
+    function fromDatabase(row) {
+        const result = {
+            id: row.id
+        };
 
-        btn.addEventListener("click", function() {
+        KEYS.forEach(key => {
+            result[key] = row[DB_FIELDS[key]] ?? "";
+        });
 
-            if (confirm("Delete this client?")) {
-                remove(r);
+        return result;
+    }
+
+    // ==========================================
+    // 5. API REQUEST
+    // ==========================================
+
+    async function apiRequest(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
             }
-
         });
 
-        td.appendChild(btn);
-        tr.appendChild(td);
+        const result = await response.json().catch(() => null);
 
-        tb.appendChild(tr);
-
-    });
-
-    $("count").textContent = rows.length;
-
-    $("empty").style.display =
-        rows.length === 0 ? "block" : "none";
-
-}
-
-    // ==========================================
-    // 4. ADD CLIENT
-    // ==========================================
-
-    function add(data) {
-
-        data.createdAt = Date.now();
-        data.id = "l" + data.createdAt;
-
-        rows.push(data);
-
-        lsSave();
-        render();
-        sync();
-
-    }
-
-
-    // ==========================================
-    // 5. UPDATE CLIENT
-    // ==========================================
-
-    function update(r, k, v) {
-
-        r[k] = v;
-
-        lsSave();
-        sync();
-
-    }
-
-
-    // ==========================================
-    // 6. DELETE CLIENT
-    // ==========================================
-
-    function remove(r) {
-
-        rows = rows.filter(function (x) {
-            return x !== r;
-        });
-
-        lsSave();
-        render();
-        sync();
-
-    }
-
-
-    // ==========================================
-    // 7. FORM SUBMISSION
-    // ==========================================
-
-    $("f").addEventListener("submit", function (e) {
-
-        e.preventDefault();
-
-        var fd = new FormData(e.target);
-        var d = {};
-
-        KEYS.forEach(function (k) {
-            d[k] = (fd.get(k) || "").trim();
-        });
-
-        // Save new client
-        add(d);
-
-        // Clear form
-        e.target.reset();
-
-        // Return cursor to Client Name
-        e.target.elements.name.focus();
-
-    });
-
-
-    // ==========================================
-    // 8. EXCEL STATUS
-    // ==========================================
-
-    function setStatus(t) {
-        $("syncStatus").textContent = t;
-    }
-
-
-    // ==========================================
-    // 9. FORMAT EXCEL DATES
-    // ==========================================
-
-    function formatDate(value) {
-
-        if (!value) return "";
-
-        if (value instanceof Date) {
-            return value.toISOString().slice(0, 10);
+        if (!response.ok) {
+            throw new Error(
+                result?.error || `Request failed (${response.status})`
+            );
         }
 
-        if (typeof value === "number") {
-
-            var d = XLSX.SSF.parse_date_code(value);
-
-            if (d) {
-                return d.y + "-" +
-                    String(d.m).padStart(2, "0") + "-" +
-                    String(d.d).padStart(2, "0");
-            }
-
-        }
-
-        var parsed = new Date(value);
-
-        if (!isNaN(parsed.getTime())) {
-            return parsed.toISOString().slice(0, 10);
-        }
-
-        return "";
-
+        return result;
     }
 
-
     // ==========================================
-    // 10. IMPORT EXCEL RECORDS
+    // 6. LOAD CLIENTS
     // ==========================================
 
-    function importExcel(arrayBuffer) {
+    async function loadClients() {
+        setStatus("Loading clients...");
 
         try {
+            const data = await apiRequest(API_URL);
 
-            var workbook = XLSX.read(arrayBuffer, {
-                type: "array",
-                cellDates: true
-            });
+            rows = Array.isArray(data)
+                ? data.map(fromDatabase)
+                : [];
 
-            var sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-            var data = XLSX.utils.sheet_to_json(sheet, {
-                defval: ""
-            });
-
-            var imported = data.map(function (r, index) {
-
-                return {
-
-                    id: "excel-" + Date.now() + "-" + index,
-
-                    name: r["Client Name"] || r["name"] || "",
-
-                    company: r["Company"] || r["company"] || "",
-
-                    proposal: r["Proposal"] || r["proposal"] || "",
-
-                    f1: formatDate(r["First Follow Up"] || r["f1"]),
-
-                    f2: formatDate(r["2nd Follow Up"] || r["f2"]),
-
-                    f3: formatDate(r["3rd Follow Up"] || r["f3"])
-
-                };
-
-            }).filter(function (r) {
-                return r.name || r.company;
-            });
-
-            rows = imported;
-
-            lsSave();
             render();
 
-            setStatus("Excel file loaded: " + rows.length + " clients.");
-
-            return true;
+            setStatus("Connected to database");
 
         } catch (error) {
+            console.error("Load error:", error);
 
-            setStatus("Unable to read Excel file.");
-
-            console.error(error);
-
-            return false;
-
+            setStatus("Could not load clients: " + error.message);
         }
-
     }
 
-
     // ==========================================
-    // 11. SELECT EXCEL FILE
+    // 7. ADD CLIENT
     // ==========================================
 
-    async function selectExcelFile() {
+    async function addClient(data) {
+        const saved = await apiRequest(API_URL, {
+            method: "POST",
+            body: JSON.stringify(toDatabase(data))
+        });
 
-        try {
-
-            if (supported) {
-
-                var handles = await window.showOpenFilePicker({
-
-                    multiple: false,
-
-                    types: [{
-                        description: "Excel Workbook",
-                        accept: {
-                            [XLSXMIME]: [".xlsx"]
-                        }
-                    }]
-
-                });
-
-                fh = handles[0];
-
-                selectedFile = await fh.getFile();
-
-                var buffer = await selectedFile.arrayBuffer();
-
-                if (importExcel(buffer)) {
-
-                    $("link").disabled = false;
-
-                    $("chg").style.display = "inline-block";
-
-                    setStatus("Selected: " + selectedFile.name);
-
-                } else {
-
-                    fh = null;
-
-                }
-
-            } else {
-
-                $("excelFallback").click();
-
-            }
-
-        } catch (error) {
-
-            if (error.name !== "AbortError") {
-
-                setStatus("Could not select Excel file.");
-
-                console.error(error);
-
-            }
-
-        }
-
+        rows.unshift(fromDatabase(saved));
     }
 
-
     // ==========================================
-    // 12. FALLBACK FILE SELECTION
+    // 8. UPDATE CLIENT
     // ==========================================
 
-    $("excelFallback").addEventListener("change", async function (e) {
+    async function updateClient(id, updates) {
+        const saved = await apiRequest(API_URL, {
+            method: "PUT",
+            body: JSON.stringify({
+                id,
+                ...toDatabase(updates)
+            })
+        });
 
-        var file = e.target.files[0];
+        const index = rows.findIndex(row => row.id === id);
 
-        if (!file) return;
-
-        selectedFile = file;
-        fh = null;
-        connected = false;
-
-        var buffer = await file.arrayBuffer();
-
-        if (importExcel(buffer)) {
-
-            $("link").disabled = false;
-
-            $("chg").style.display = "inline-block";
-
-            setStatus(
-                "Imported: " + file.name +
-                ". Direct automatic saving is unavailable in this browser."
-            );
-
+        if (index !== -1) {
+            rows[index] = fromDatabase(saved);
         }
-
-        e.target.value = "";
-
-    });
-
+    }
 
     // ==========================================
-    // 13. BUILD EXCEL WORKBOOK
+    // 9. DELETE CLIENT
     // ==========================================
 
-    function buildXlsx() {
-
-        var aoa = [[
-            "Client Name",
-            "Company",
-            "Proposal",
-            "First Follow Up",
-            "2nd Follow Up",
-            "3rd Follow Up"
-        ]];
-
-        rows.forEach(function (r) {
-
-            aoa.push([
-
-                r.name,
-                r.company,
-                r.proposal,
-
-                r.f1 ? new Date(r.f1 + "T00:00:00Z") : "",
-
-                r.f2 ? new Date(r.f2 + "T00:00:00Z") : "",
-
-                r.f3 ? new Date(r.f3 + "T00:00:00Z") : ""
-
-            ]);
-
-        });
-
-        var ws = XLSX.utils.aoa_to_sheet(aoa, {
-            cellDates: true
-        });
-
-        ws["!cols"] = [
-            { wch: 24 },
-            { wch: 28 },
-            { wch: 34 },
-            { wch: 18 },
-            { wch: 18 },
-            { wch: 18 }
-        ];
-
-        for (var R = 1; R < aoa.length; R++) {
-
-            for (var C = 3; C < 6; C++) {
-
-                var cell = ws[XLSX.utils.encode_cell({
-                    r: R,
-                    c: C
-                })];
-
-                if (cell && cell.t === "d") {
-                    cell.z = "mmm d, yyyy";
-                }
-
+    async function deleteClient(id) {
+        await apiRequest(
+            `${API_URL}?id=${encodeURIComponent(id)}`,
+            {
+                method: "DELETE"
             }
-
-        }
-
-        var wb = XLSX.utils.book_new();
-
-        XLSX.utils.book_append_sheet(
-            wb,
-            ws,
-            "Client Tracker"
         );
 
-        return XLSX.write(wb, {
-            bookType: "xlsx",
-            type: "array"
-        });
-
+        rows = rows.filter(row => row.id !== id);
     }
 
-
     // ==========================================
-    // 14. CONNECT EXCEL FILE
+    // 10. PROPOSAL STATUS OPTIONS
     // ==========================================
 
-    async function connectExcel() {
+    function getStatusOptions(currentStatus) {
+        const field = form.elements.namedItem("proposalstatus");
 
-        if (!selectedFile) {
+        if (field && field.tagName === "SELECT") {
+            const options = Array.from(field.options);
 
-            setStatus("Please select an Excel file first.");
+            if (
+                currentStatus &&
+                !options.some(option => option.value === currentStatus)
+            ) {
+                options.push(new Option(currentStatus, currentStatus));
+            }
 
-            return;
-
+            return options.map(option => ({
+                value: option.value,
+                label: option.textContent
+            }));
         }
 
-        if (!fh) {
+        return ["Sent", "Approved", "Rejected", "Pending"]
+            .map(value => ({
+                value,
+                label: value
+            }));
+    }
 
-            setStatus(
-                "File imported, but direct saving requires a supported browser. " +
-                "Use Download Excel Backup to save changes."
-            );
+    // ==========================================
+    // 11. TABLE RENDERING
+    // ==========================================
 
-            return;
+    function statusSelect(row) {
+        const options = getStatusOptions(row.proposalstatus);
 
+        return `
+            <select
+                class="row-status"
+                data-id="${escapeHTML(row.id)}"
+            >
+                ${options.map(option => `
+                    <option
+                        value="${escapeHTML(option.value)}"
+                        ${option.value === row.proposalstatus ? "selected" : ""}
+                    >
+                        ${escapeHTML(option.label)}
+                    </option>
+                `).join("")}
+            </select>
+        `;
+    }
+
+    function dateInput(row, key) {
+        return `
+            <input
+                type="date"
+                class="row-date"
+                data-id="${escapeHTML(row.id)}"
+                data-field="${key}"
+                value="${escapeHTML(row[key])}"
+            >
+        `;
+    }
+
+    function render() {
+        if (!tableBody) return;
+
+        if (rows.length === 0) {
+            tableBody.innerHTML = "";
+
+            if ($("empty")) {
+                $("empty").style.display = "";
+            }
+
+        } else {
+            if ($("empty")) {
+                $("empty").style.display = "none";
+            }
+
+            tableBody.innerHTML = rows.map(row => `
+                <tr>
+                    <td>${escapeHTML(row.name)}</td>
+
+                    <td>${escapeHTML(row.company)}</td>
+
+                    <td>${escapeHTML(row.proposaltitle)}</td>
+
+                    <td>${statusSelect(row)}</td>
+
+                    <td>${dateInput(row, "f1")}</td>
+
+                    <td>${dateInput(row, "f2")}</td>
+
+                    <td>${dateInput(row, "f3")}</td>
+
+                    <td>
+                        <button
+                            type="button"
+                            data-action="edit"
+                            data-id="${escapeHTML(row.id)}"
+                        >
+                            Edit
+                        </button>
+
+                        <button
+                            type="button"
+                            class="del"
+                            data-action="delete"
+                            data-id="${escapeHTML(row.id)}"
+                        >
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join("");
         }
 
-        try {
+        if ($("count")) {
+            $("count").textContent = rows.length;
+        }
+    }
 
-            var permission = await fh.queryPermission({
-                mode: "readwrite"
+    // ==========================================
+    // 12. FORM RESET
+    // ==========================================
+
+    function clearForm() {
+        form.reset();
+
+        editingId = null;
+
+        const submit = form.querySelector('[type="submit"]');
+
+        if (submit) {
+            submit.textContent = "Add Client";
+        }
+    }
+
+    // ==========================================
+    // 13. EDIT CLIENT
+    // ==========================================
+
+    function editClient(id) {
+        const row = rows.find(item => item.id === id);
+
+        if (!row) return;
+
+        editingId = id;
+
+        KEYS.forEach(key => {
+            const field = form.elements.namedItem(key);
+
+            if (field) {
+                field.value = row[key] ?? "";
+            }
+        });
+
+        const submit = form.querySelector('[type="submit"]');
+
+        if (submit) {
+            submit.textContent = "Update Client";
+        }
+
+        form.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+    }
+
+    // ==========================================
+    // 14. FORM SUBMISSION
+    // ==========================================
+
+    if (form) {
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            if (busy) return;
+
+            const data = {};
+
+            KEYS.forEach(key => {
+                const field = form.elements.namedItem(key);
+
+                data[key] = field
+                    ? field.value.trim()
+                    : "";
             });
 
-            if (permission !== "granted") {
-
-                permission = await fh.requestPermission({
-                    mode: "readwrite"
-                });
-
-            }
-
-            if (permission !== "granted") {
-
-                setStatus("Permission to edit Excel file was denied.");
-
+            if (!data.name) {
+                alert("Please enter the client name.");
                 return;
-
             }
 
-            connected = true;
+            if (!data.proposalstatus) {
+                alert("Please select a proposal status.");
+                return;
+            }
 
-            $("link").textContent = "Excel Connected";
-            $("link").disabled = true;
+            busy = true;
 
-            setStatus("Connected to " + selectedFile.name);
+            setStatus("Saving...");
 
-            await sync();
+            try {
+                if (editingId) {
+                    await updateClient(editingId, data);
+                } else {
+                    await addClient(data);
+                }
 
-        } catch (error) {
+                clearForm();
 
-            setStatus("Unable to connect to Excel file.");
+                render();
 
-            console.error(error);
+                setStatus("Saved successfully");
 
-        }
+            } catch (error) {
+                console.error("Save error:", error);
 
-    }
+                alert("Could not save client: " + error.message);
 
+                setStatus("Save failed");
 
-    // ==========================================
-    // 15. AUTOMATIC EXCEL SYNCHRONIZATION
-    // ==========================================
-
-    async function sync() {
-
-        lsSave();
-
-        if (!connected || !fh) return;
-
-        try {
-
-            var data = buildXlsx();
-
-            var writable = await fh.createWritable();
-
-            await writable.write(data);
-
-            await writable.close();
-
-            setStatus("Excel synchronized successfully.");
-
-        } catch (error) {
-
-            setStatus("Excel synchronization failed. Please reconnect.");
-
-            console.error(error);
-
-        }
-
-    }
-
-
-    // ==========================================
-    // 16. DOWNLOAD EXCEL BACKUP
-    // ==========================================
-
-    function downloadExcel() {
-
-        var data = buildXlsx();
-
-        var blob = new Blob([data], {
-            type: XLSXMIME
+            } finally {
+                busy = false;
+            }
         });
 
-        var url = URL.createObjectURL(blob);
+        form.addEventListener("reset", function () {
+            editingId = null;
 
-        var a = document.createElement("a");
+            const submit = form.querySelector('[type="submit"]');
 
-        a.href = url;
-
-        a.download = "Client_Follow_Up_Tracker.xlsx";
-
-        a.click();
-
-        URL.revokeObjectURL(url);
-
+            if (submit) {
+                submit.textContent = "Add Client";
+            }
+        });
     }
 
-
     // ==========================================
-    // 17. BUTTON EVENTS
-    // ==========================================
-
-    $("selectExcel").addEventListener("click", selectExcelFile);
-
-    $("link").addEventListener("click", connectExcel);
-
-    $("chg").addEventListener("click", async function () {
-
-        connected = false;
-        fh = null;
-        selectedFile = null;
-
-        $("link").textContent = "Connect Excel File";
-        $("link").disabled = true;
-
-        await selectExcelFile();
-
-    });
-
-    $("downloadExcel").addEventListener("click", downloadExcel);
-
-
-    // ==========================================
-    // 18. INITIALIZE TRACKER
+    // 15. TABLE ACTIONS
     // ==========================================
 
-    $("link").disabled = true;
+    if (tableBody) {
+        tableBody.addEventListener("click", async function (event) {
+            const button = event.target.closest("button[data-action]");
 
-    rows = lsLoad();
+            if (!button || busy) return;
 
-    render();
+            const id = button.dataset.id;
+            const action = button.dataset.action;
 
-    if (!supported) {
+            if (action === "edit") {
+                editClient(id);
+                return;
+            }
 
-        setStatus(
-            "Select a file to import. Direct Excel synchronization " +
-            "requires a supported browser."
-        );
+            if (action === "delete") {
+                const confirmed = confirm(
+                    "Are you sure you want to delete this client?"
+                );
 
+                if (!confirmed) return;
+
+                busy = true;
+
+                setStatus("Deleting...");
+
+                try {
+                    await deleteClient(id);
+
+                    render();
+
+                    setStatus("Client deleted");
+
+                } catch (error) {
+                    console.error("Delete error:", error);
+
+                    alert("Could not delete client: " + error.message);
+
+                    setStatus("Delete failed");
+
+                } finally {
+                    busy = false;
+                }
+            }
+        });
+
+        // ==========================================
+        // 16. INLINE STATUS AND DATE UPDATES
+        // ==========================================
+
+        tableBody.addEventListener("change", async function (event) {
+            const field = event.target;
+
+            if (
+                !field.matches(".row-status, .row-date") ||
+                busy
+            ) {
+                return;
+            }
+
+            const id = field.dataset.id;
+
+            const key = field.matches(".row-status")
+                ? "proposalstatus"
+                : field.dataset.field;
+
+            const currentRow = rows.find(row => row.id === id);
+
+            if (!currentRow) return;
+
+            const updates = {
+                ...currentRow,
+                [key]: field.value
+            };
+
+            busy = true;
+
+            setStatus("Updating...");
+
+            try {
+                await updateClient(id, updates);
+
+                render();
+
+                setStatus("Changes saved");
+
+            } catch (error) {
+                console.error("Update error:", error);
+
+                alert("Could not update client: " + error.message);
+
+                render();
+
+                setStatus("Update failed");
+
+            } finally {
+                busy = false;
+            }
+        });
     }
+
+    // ==========================================
+    // 17. START WEBSITE
+    // ==========================================
+
+    loadClients();
 
 })();

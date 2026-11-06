@@ -278,14 +278,29 @@
     // ==========================================
     // 9. DELETE CLIENT
     // ==========================================
-    async function deleteClient(id) {
-        const confirmed = confirm(
-            "Are you sure you want to delete this client record?\n\nThis action cannot be undone."
-        );
     
-        if (!confirmed) {
-            return;
-        }
+    let pendingDeleteId = null;
+    
+    function deleteClient(id) {
+        pendingDeleteId = id;
+    
+        document.getElementById("deleteModal").classList.add("show");
+    }
+    
+    document.getElementById("cancelDelete").addEventListener("click", function () {
+        pendingDeleteId = null;
+    
+        document.getElementById("deleteModal").classList.remove("show");
+    });
+    
+    document.getElementById("confirmDelete").addEventListener("click", async function () {
+        if (!pendingDeleteId) return;
+    
+        const id = pendingDeleteId;
+    
+        document.getElementById("deleteModal").classList.remove("show");
+    
+        pendingDeleteId = null;
     
         try {
             busy = true;
@@ -304,7 +319,8 @@
             busy = false;
             render();
         }
-    }
+    });
+
 
     // ==========================================
     // 10. INPUT FIELD HELPERS

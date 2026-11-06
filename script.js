@@ -131,9 +131,7 @@
         let url = API_URL;
 
         if (id) {
-
             url += "?id=" + encodeURIComponent(id);
-
         }
 
         const response = await fetch(url, options);
@@ -141,13 +139,9 @@
         let result = null;
 
         try {
-
             result = await response.json();
-
         } catch (error) {
-
             result = null;
-
         }
 
         if (!response.ok) {
@@ -304,9 +298,7 @@
             await apiRequest("DELETE", null, id);
 
             if (editingId === id) {
-
                 editingId = null;
-
             }
 
             await loadClients();
@@ -367,9 +359,30 @@
         // READ-ONLY MODE
         if (!isEditing) {
 
+            // COLORED STATUS LABELS
+            if (key === "proposalstatus") {
+
+                const status = value.toLowerCase();
+
+                const statusClass = {
+                    sent: "status-sent",
+                    rejected: "status-rejected",
+                    approved: "status-approved",
+                    pending: "status-pending"
+                }[status] || "";
+
+                return `
+                    <span class="status-badge ${statusClass}">
+                        ${escapeHTML(value || "-")}
+                    </span>
+                `;
+
+            }
+
             return escapeHTML(value);
 
         }
+
 
         // STATUS DROPDOWN
         if (key === "proposalstatus") {
@@ -388,6 +401,7 @@
 
         }
 
+
         // DATE INPUTS
         if (["f1", "f2", "f3"].includes(key)) {
 
@@ -402,6 +416,7 @@
             `;
 
         }
+
 
         // TEXT INPUTS
         return `
@@ -445,6 +460,7 @@
                     .includes(searchValue)
 
             );
+
 
             // STATUS FILTER
             const matchesStatus =
